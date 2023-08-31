@@ -1,10 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using MoviesPediaDataAccessLibrary.Data;
+using MoviesPediaDataAccessLibrary.Interfaces;
+using MoviesPediaDataAccessLibrary.Services;
+using NLog.Web;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+
+builder.Services.AddScoped<ICacheService, CacheService>();
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
@@ -14,6 +19,10 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAutoMapper(typeof(Program));
+
+builder.Logging.ClearProviders();
+builder.Host.UseNLog();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {

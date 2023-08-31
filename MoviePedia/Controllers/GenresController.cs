@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using MoviePedia.DTOs;
 using MoviesPediaDataAccessLibrary.Data;
 using MoviesPediaDataAccessLibrary.Entities;
+using MoviesPediaDataAccessLibrary.Interfaces;
 
 namespace MoviePedia.Controllers
 {
@@ -11,20 +13,47 @@ namespace MoviePedia.Controllers
     [Route("api/genres")]
     public class GenresController:ControllerBase
     {
+        private readonly ICacheService _cacheService;
         private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
+        private readonly ILogger<GenresController> _logger;
+        private readonly string cacheName="genres";
 
-        public GenresController(ApplicationDbContext context, IMapper mapper)
+        public GenresController(ICacheService cacheService, ApplicationDbContext context, IMapper mapper, ILogger<GenresController> logger)
         {
-           _context = context;
+            _cacheService = cacheService;
+            _context = context;
             _mapper = mapper;
+            _logger = logger;
+
+            _logger.LogInformation("NLog is integrated with Genres Controller");
         }
 
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Genre>>> Get()
         {
-            return await  _context.Genres.ToListAsync();
+            try
+            {
+                _logger.LogInformation("Getting Genres List.");
+
+                var data = _cacheService.GetData<List<Genre>>(cacheName);
+                if(data is null)
+                {
+                    data = await _context.Genres.ToListAsync();
+                    _cacheService.SetData(cacheName, data, TimeSpan.FromMinutes(1));
+                    _cacheService.RemoveData(cacheName);
+                }
+                return data;
+
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Getting Genres List Error Occured.");
+                throw;
+            }
+            
         }
 
         [HttpPut("{id:int}/name2")]
